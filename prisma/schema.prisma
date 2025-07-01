@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Episode {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  pubDate     DateTime
+  youtubeUrl  String?
+  bookTitle   String?
+  bookAuthor  String?
+  bookLink    String?
+  bookImage   String?
+  description String   @db.Text
+  posts       Post[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("episodes")
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  episode   Episode?  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  episodeId Int?
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  title     String
+  body      String    @db.Text
+  score     Int       @default(0)
+  comments  Comment[]
+  votes     Vote[]
+  isPinned  Boolean   @default(false)
+  isLocked  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("posts")
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    Int
+  parent    Comment?  @relation("CommentToComment", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId  Int?
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  body      String    @db.Text
+  score     Int       @default(0)
+  children  Comment[] @relation("CommentToComment")
+  votes     Vote[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("comments")
+}
+
+model Vote {
+  id         Int            @id @default(autoincrement())
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  targetType VoteTargetType
+  targetId   Int
+  value      Int // -1 or 1
+  createdAt  DateTime       @default(now())
+
+  // Relations to actual targets
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId  Int?
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId Int?
+
+  @@unique([userId, targetType, targetId])
+  @@map("votes")
+}
+
+enum VoteTargetType {
+  POST
+  COMMENT
+}
+
+model User {
+  id        String    @id // Supabase auth user ID
+  email     String    @unique
+  username  String    @unique
+  avatar    String?
+  bio       String?
+  isAdmin   Boolean   @default(false)
+  isBanned  Boolean   @default(false)
+  posts     Post[]
+  comments  Comment[]
+  votes     Vote[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("users")
+}
